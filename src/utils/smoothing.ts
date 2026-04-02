@@ -1,9 +1,17 @@
-import {EMA_ALPHA, HYSTERESIS_MS} from './constants';
+import {HYSTERESIS_MS} from './constants';
 
+/**
+ * Two-stage smoothing:
+ * - Light EMA on raw pitch for jitter reduction
+ * - Hysteresis on note switching to prevent flicker between adjacent notes
+ */
 export class PitchSmoother {
   private smoothedPitch: number | null = null;
   private lastNoteChange: number = 0;
   private lastMidiNote: number | null = null;
+
+  // Higher alpha = more responsive (0.55 is a good balance for web)
+  private readonly alpha = 0.55;
 
   reset() {
     this.smoothedPitch = null;
@@ -16,7 +24,7 @@ export class PitchSmoother {
       this.smoothedPitch = rawPitch;
     } else {
       this.smoothedPitch =
-        EMA_ALPHA * rawPitch + (1 - EMA_ALPHA) * this.smoothedPitch;
+        this.alpha * rawPitch + (1 - this.alpha) * this.smoothedPitch;
     }
     return this.smoothedPitch;
   }
@@ -30,10 +38,12 @@ export class PitchSmoother {
       return true;
     }
 
+    // Same note — always allow (cents update is important)
     if (newMidiNote === this.lastMidiNote) {
       return true;
     }
 
+    // Different note — apply hysteresis to prevent flicker
     if (now - this.lastNoteChange >= HYSTERESIS_MS) {
       this.lastMidiNote = newMidiNote;
       this.lastNoteChange = now;

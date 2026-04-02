@@ -11,12 +11,19 @@ export class PitchDetectorEngine {
   }
 
   async start(): Promise<void> {
-    this.stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    this.stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false,
+      },
+    });
     this.audioContext = new AudioContext();
     const source = this.audioContext.createMediaStreamSource(this.stream);
 
     this.analyser = this.audioContext.createAnalyser();
     this.analyser.fftSize = 4096;
+    this.analyser.smoothingTimeConstant = 0; // No smoothing — we want raw frames
     source.connect(this.analyser);
 
     this.buffer = new Float32Array(this.analyser.fftSize);
@@ -52,71 +59,81 @@ export class PitchDetectorEngine {
   };
 }
 
-function autoCorrelate(buffer: Float32Array<ArrayBuffer>, sampleRate: number): number {
-  const SIZE = buffer.length;
+/**
+ * ACF2+ autocorrelation pitch detection.
+ * Returns detected frequency in Hz, or -1 if no pitch found.
+ */
+function autoCorrelate(buf: Float32Array<ArrayBuffer>, sampleRate: number): number {
+  const SIZE = buf.length;
 
-  // Check RMS volume — skip if too quiet
+  // RMS volume gate
   let rms = 0;
   for (let i = 0; i < SIZE; i++) {
-    rms += buffer[i]! * buffer[i]!;
+    rms += buf[i]! * buf[i]!;
   }
   rms = Math.sqrt(rms / SIZE);
-  if (rms < 0.01) return -1;
+  if (rms < 0.008) return -1;
 
-  // Trim silence from edges
-  let r1 = 0;
-  let r2 = SIZE - 1;
-  const threshold = 0.2;
+  // Find the meaningful signal window by trimming quiet edges.
+  // Walk inward from both ends until we hit a sample above the threshold.
+  const threshold = 0.15;
+  let start = 0;
+  let end = SIZE - 1;
   for (let i = 0; i < SIZE / 2; i++) {
-    if (Math.abs(buffer[i]!) < threshold) {
-      r1 = i;
-      break;
-    }
+    if (Math.abs(buf[i]!) >= threshold) { start = i; break; }
   }
-  for (let i = 1; i < SIZE / 2; i++) {
-    if (Math.abs(buffer[SIZE - i]!) < threshold) {
-      r2 = SIZE - i;
-      break;
-    }
+  for (let i = SIZE - 1; i >= SIZE / 2; i--) {
+    if (Math.abs(buf[i]!) >= threshold) { end = i; break; }
   }
 
-  const trimmed = buffer.slice(r1, r2);
-  const len = trimmed.length;
-  if (len < 2) return -1;
+  // Need a reasonable window for autocorrelation
+  if (end - start < 128) {
+    start = 0;
+    end = SIZE - 1;
+  }
+
+  const len = end - start + 1;
 
   // Autocorrelation
-  const c = new Float32Array(len);
-  for (let i = 0; i < len; i++) {
+  const corr = new Float32Array(len);
+  for (let lag = 0; lag < len; lag++) {
     let sum = 0;
-    for (let j = 0; j < len - i; j++) {
-      sum += trimmed[j]! * trimmed[j + i]!;
+    for (let j = 0; j < len - lag; j++) {
+      sum += buf[start + j]! * buf[start + j + lag]!;
     }
-    c[i] = sum;
+    corr[lag] = sum;
   }
 
-  // Find first dip
-  let d = 0;
-  while (d < len - 1 && c[d]! > c[d + 1]!) d++;
+  // Find the first dip after lag 0 (correlation decreasing from self-correlation)
+  let d = 1;
+  while (d < len - 1 && corr[d]! >= corr[d - 1]!) d++;
+  if (d >= len - 1) return -1;
 
-  // Find peak after dip
-  let maxval = -1;
-  let maxpos = -1;
-  for (let i = d; i < len; i++) {
-    if (c[i]! > maxval) {
-      maxval = c[i]!;
-      maxpos = i;
+  // Find the highest peak after the dip — this is the fundamental period
+  let bestLag = d;
+  let bestVal = corr[d]!;
+  for (let i = d + 1; i < len; i++) {
+    if (corr[i]! > bestVal) {
+      bestVal = corr[i]!;
+      bestLag = i;
     }
   }
 
-  if (maxpos < 1 || maxpos >= len - 1) return -1;
+  // Confidence check: peak should be a significant fraction of self-correlation
+  if (corr[0]! > 0 && bestVal / corr[0]! < 0.3) return -1;
+
+  // Guard: bestLag must be interior for parabolic interpolation
+  if (bestLag < 1 || bestLag >= len - 1) return -1;
 
   // Parabolic interpolation for sub-sample accuracy
-  const x1 = c[maxpos - 1]!;
-  const x2 = c[maxpos]!;
-  const x3 = c[maxpos + 1]!;
-  const a = (x1 + x3 - 2 * x2) / 2;
-  const b = (x3 - x1) / 2;
-  const shift = a !== 0 ? -b / (2 * a) : 0;
+  const y1 = corr[bestLag - 1]!;
+  const y2 = corr[bestLag]!;
+  const y3 = corr[bestLag + 1]!;
+  const a = (y1 + y3 - 2 * y2) / 2;
+  const b = (y3 - y1) / 2;
+  const refinedLag = bestLag + (a !== 0 ? -b / (2 * a) : 0);
 
-  return sampleRate / (maxpos + shift);
+  if (refinedLag <= 0) return -1;
+
+  return sampleRate / refinedLag;
 }

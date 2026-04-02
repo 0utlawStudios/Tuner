@@ -25,33 +25,36 @@ export function TunerScreen() {
   return (
     <div className={styles.container}>
       <header className={styles.header}>
-        <span className={styles.brand}>TUNER</span>
-        <span className={styles.badge} data-active={isListening}>
-          {isListening ? 'LISTENING' : 'IDLE'}
+        <div className={styles.brand}>
+          <img src="/logo.png" alt="0utlawStudios" className={styles.logo} />
+          <span className={styles.brandName}>0utlawStudios</span>
+        </div>
+        <span className={`${styles.badge} ${isListening ? styles.badgeActive : ''}`}>
+          {isListening ? 'LIVE' : 'IDLE'}
         </span>
       </header>
 
-      <div className={styles.gaugeSection}>
-        <TunerGauge cents={currentNote ? currentCents : 0} />
-      </div>
-
-      <InTuneIndicator />
-
-      <div className={styles.noteSection}>
-        <NoteDisplay />
-        <CentsDisplay />
-        {currentNote && (
-          <div className={styles.frequency}>
-            {currentFrequency.toFixed(1)} Hz
+      <div className={styles.main}>
+        <div className={styles.gaugeCard}>
+          <TunerGauge cents={currentNote ? currentCents : 0} />
+          <InTuneIndicator />
+          <div className={styles.noteArea}>
+            <NoteDisplay />
+            <CentsDisplay />
+            {currentNote && (
+              <div className={styles.frequency}>
+                {currentFrequency.toFixed(1)} Hz
+              </div>
+            )}
           </div>
-        )}
+        </div>
+
+        <div className={styles.vizCard}>
+          <WaveformDisplay />
+        </div>
       </div>
 
-      <div className={styles.waveformSection}>
-        <WaveformDisplay />
-      </div>
-
-      <div className={styles.bottomSection}>
+      <div className={styles.bottom}>
         <StringIndicator />
         <InstrumentSelector />
       </div>

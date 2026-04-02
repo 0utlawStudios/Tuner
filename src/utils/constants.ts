@@ -14,8 +14,8 @@ export const CLOSE_THRESHOLD = 15;
 // Pitch detection config
 export const CONFIDENCE_THRESHOLD = 0.85;
 export const VOLUME_THRESHOLD = -50; // dB
-export const EMA_ALPHA = 0.3;
-export const HYSTERESIS_MS = 80;
+export const EMA_ALPHA = 0.55;
+export const HYSTERESIS_MS = 60;
 
 // Gauge config
 export const GAUGE_MIN_CENTS = -50;

@@ -1,7 +1,6 @@
 import { useTunerStore } from '../../store/tunerStore';
 import { useMemo } from 'react';
 import { IN_TUNE_THRESHOLD, CLOSE_THRESHOLD } from '../../utils/constants';
-import { theme } from '../../theme/theme';
 import styles from './NoteDisplay.module.css';
 
 export function NoteDisplay() {
@@ -10,11 +9,11 @@ export function NoteDisplay() {
   const currentCents = useTunerStore(s => s.currentCents);
 
   const noteColor = useMemo(() => {
-    if (!currentNote) return theme.colors.textDim;
-    const absCents = Math.abs(currentCents);
-    if (absCents <= IN_TUNE_THRESHOLD) return theme.colors.inTune;
-    if (absCents <= CLOSE_THRESHOLD) return theme.colors.close;
-    return theme.colors.sharp;
+    if (!currentNote) return 'rgba(255,255,255,0.12)';
+    const a = Math.abs(currentCents);
+    if (a <= IN_TUNE_THRESHOLD) return '#00FFB2';
+    if (a <= CLOSE_THRESHOLD) return '#FFD700';
+    return '#FF4466';
   }, [currentNote, currentCents]);
 
   return (
@@ -23,7 +22,7 @@ export function NoteDisplay() {
         {currentNote ?? '—'}
       </span>
       {currentOctave !== null && (
-        <span className={styles.octave}>{currentOctave}</span>
+        <span className={styles.octave} style={{ color: noteColor + '50' }}>{currentOctave}</span>
       )}
     </div>
   );

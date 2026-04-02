@@ -1,32 +1,27 @@
 .container {
   display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding: 4px 0;
-  scrollbar-width: none;
-  -ms-overflow-style: none;
+  gap: 6px;
   justify-content: center;
   flex-wrap: wrap;
-}
-
-.container::-webkit-scrollbar {
-  display: none;
 }
 
 .chip {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 5px;
   padding: 8px 14px;
-  border-radius: 20px;
-  background: #1A1A25;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.25s ease;
   white-space: nowrap;
-  transition: all 0.2s;
 }
 
-.chipActive {
-  background: rgba(0, 255, 178, 0.12);
-  box-shadow: 0 0 0 1px rgba(0, 255, 178, 0.3);
+.active {
+  background: rgba(0, 255, 178, 0.06);
+  border-color: rgba(0, 255, 178, 0.18);
 }
 
 .chip:active {
@@ -34,16 +29,26 @@
 }
 
 .icon {
-  font-size: 16px;
+  font-size: 14px;
 }
 
 .label {
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.5px;
-  color: #8888AA;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.3px;
+  color: rgba(255, 255, 255, 0.35);
+  transition: color 0.25s ease;
 }
 
-.chipActive .label {
-  color: #00FFB2;
+.active .label {
+  color: rgba(0, 255, 178, 0.85);
+}
+
+@media (max-width: 360px) {
+  .chip {
+    padding: 6px 10px;
+  }
+  .label {
+    font-size: 11px;
+  }
 }

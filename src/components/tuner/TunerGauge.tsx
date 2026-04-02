@@ -1,32 +1,30 @@
 import { useMemo } from 'react';
 import { GAUGE_MIN_CENTS, GAUGE_MAX_CENTS, IN_TUNE_THRESHOLD, CLOSE_THRESHOLD } from '../../utils/constants';
-import { theme } from '../../theme/theme';
 import styles from './TunerGauge.module.css';
 
 interface Props {
   cents: number;
 }
 
-const SIZE = 280;
-const CX = SIZE / 2;
-const CY = SIZE / 2 + 20;
-const RADIUS = 110;
-const TICK_OUTER = RADIUS + 12;
-const TICK_INNER = RADIUS - 4;
-const NEEDLE_LEN = RADIUS - 10;
+const VB_W = 300;
+const VB_H = 170;
+const CX = VB_W / 2;
+const CY = VB_H - 20;
+const RADIUS = 120;
+const NEEDLE_LEN = RADIUS - 14;
 const START_ANGLE = 180;
 const END_ANGLE = 360;
 
-function polarToCartesian(cx: number, cy: number, r: number, angleDeg: number) {
-  const rad = (angleDeg * Math.PI) / 180;
+function polar(cx: number, cy: number, r: number, deg: number) {
+  const rad = (deg * Math.PI) / 180;
   return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
 }
 
-function describeArc(cx: number, cy: number, r: number, startAngle: number, endAngle: number) {
-  const start = polarToCartesian(cx, cy, r, endAngle);
-  const end = polarToCartesian(cx, cy, r, startAngle);
-  const largeArc = endAngle - startAngle > 180 ? 1 : 0;
-  return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 0 ${end.x} ${end.y}`;
+function arc(cx: number, cy: number, r: number, start: number, end: number) {
+  const s = polar(cx, cy, r, end);
+  const e = polar(cx, cy, r, start);
+  const large = end - start > 180 ? 1 : 0;
+  return `M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 0 ${e.x} ${e.y}`;
 }
 
 function centsToAngle(cents: number): number {
@@ -36,32 +34,33 @@ function centsToAngle(cents: number): number {
 }
 
 export function TunerGauge({ cents }: Props) {
-  const needleAngle = centsToAngle(cents);
-  const needleEnd = polarToCartesian(CX, CY, NEEDLE_LEN, needleAngle);
+  const angle = centsToAngle(cents);
+  const tip = polar(CX, CY, NEEDLE_LEN, angle);
 
-  const needleColor = useMemo(() => {
-    const absCents = Math.abs(cents);
-    if (absCents <= IN_TUNE_THRESHOLD) return theme.colors.inTune;
-    if (absCents <= CLOSE_THRESHOLD) return theme.colors.close;
-    return theme.colors.sharp;
+  const status = useMemo(() => {
+    const a = Math.abs(cents);
+    if (a <= IN_TUNE_THRESHOLD) return 'inTune' as const;
+    if (a <= CLOSE_THRESHOLD) return 'close' as const;
+    return 'off' as const;
   }, [cents]);
+
+  const needleColor = status === 'inTune' ? '#00FFB2' : status === 'close' ? '#FFD700' : '#FF4466';
+  const glowColor = status === 'inTune' ? 'rgba(0,255,178,0.5)' : status === 'close' ? 'rgba(255,215,0,0.4)' : 'rgba(255,68,102,0.35)';
 
   const ticks = useMemo(() => {
     const result = [];
-    for (let c = GAUGE_MIN_CENTS; c <= GAUGE_MAX_CENTS; c += 10) {
-      const angle = centsToAngle(c);
-      const isMajor = c === 0;
-      const outer = polarToCartesian(CX, CY, TICK_OUTER, angle);
-      const inner = polarToCartesian(CX, CY, isMajor ? TICK_INNER - 6 : TICK_INNER, angle);
+    for (let c = GAUGE_MIN_CENTS; c <= GAUGE_MAX_CENTS; c += 5) {
+      const a = centsToAngle(c);
+      const isMajor = c % 10 === 0;
+      const isCenter = c === 0;
+      const outerR = RADIUS + (isCenter ? 10 : isMajor ? 8 : 4);
+      const innerR = RADIUS + 1;
+      const o = polar(CX, CY, outerR, a);
+      const i = polar(CX, CY, innerR, a);
       result.push(
-        <line
-          key={c}
-          x1={outer.x} y1={outer.y}
-          x2={inner.x} y2={inner.y}
-          stroke={isMajor ? theme.colors.textSecondary : theme.colors.gaugeTick}
-          strokeWidth={isMajor ? 2 : 1}
-          strokeLinecap="round"
-        />
+        <line key={c} x1={o.x} y1={o.y} x2={i.x} y2={i.y}
+          stroke={isCenter ? 'rgba(255,255,255,0.35)' : isMajor ? 'rgba(255,255,255,0.12)' : 'rgba(255,255,255,0.05)'}
+          strokeWidth={isCenter ? 2 : 1} strokeLinecap="round" />
       );
     }
     return result;
@@ -69,37 +68,44 @@ export function TunerGauge({ cents }: Props) {
 
   return (
     <div className={styles.container}>
-      <svg width={SIZE} height={SIZE / 2 + 40} viewBox={`0 0 ${SIZE} ${SIZE / 2 + 40}`}>
-        {/* Arc track */}
-        <path
-          d={describeArc(CX, CY, RADIUS, START_ANGLE, END_ANGLE)}
-          fill="none"
-          stroke={theme.colors.gaugeTrack}
-          strokeWidth={3}
-          strokeLinecap="round"
-        />
+      <svg viewBox={`0 0 ${VB_W} ${VB_H}`} className={styles.svg}>
+        <defs>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
 
-        {/* Tick marks */}
+        {/* Arc track */}
+        <path d={arc(CX, CY, RADIUS, START_ANGLE, END_ANGLE)}
+          fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth={2} strokeLinecap="round" />
+
+        {/* Ticks */}
         {ticks}
 
         {/* Labels */}
-        <text x={CX - RADIUS - 20} y={CY + 20} fill={theme.colors.textDim} fontSize="11" textAnchor="middle"
-          fontFamily="-apple-system, BlinkMacSystemFont, sans-serif">FLAT</text>
-        <text x={CX + RADIUS + 20} y={CY + 20} fill={theme.colors.textDim} fontSize="11" textAnchor="middle"
-          fontFamily="-apple-system, BlinkMacSystemFont, sans-serif">SHARP</text>
+        <text x={CX - RADIUS - 12} y={CY + 4} fill="rgba(255,255,255,0.18)" fontSize="9"
+          textAnchor="middle" fontFamily="inherit" fontWeight="500" letterSpacing="1">FLAT</text>
+        <text x={CX + RADIUS + 12} y={CY + 4} fill="rgba(255,255,255,0.18)" fontSize="9"
+          textAnchor="middle" fontFamily="inherit" fontWeight="500" letterSpacing="1">SHARP</text>
+
+        {/* Needle glow */}
+        <line x1={CX} y1={CY} x2={tip.x} y2={tip.y}
+          stroke={glowColor} strokeWidth={6} strokeLinecap="round"
+          filter="url(#glow)" className={styles.needle} />
 
         {/* Needle */}
-        <line
-          x1={CX} y1={CY}
-          x2={needleEnd.x} y2={needleEnd.y}
-          stroke={needleColor}
-          strokeWidth={2.5}
-          strokeLinecap="round"
-          className={styles.needle}
-        />
+        <line x1={CX} y1={CY} x2={tip.x} y2={tip.y}
+          stroke={needleColor} strokeWidth={2} strokeLinecap="round"
+          className={styles.needle} />
 
-        {/* Center dot */}
-        <circle cx={CX} cy={CY} r={5} fill={theme.colors.surface} stroke={theme.colors.textSecondary} strokeWidth={1.5} />
+        {/* Center hub */}
+        <circle cx={CX} cy={CY} r={6} fill="rgba(255,255,255,0.04)"
+          stroke="rgba(255,255,255,0.1)" strokeWidth={1} />
+        <circle cx={CX} cy={CY} r={2.5} fill={needleColor} opacity={0.8} />
       </svg>
     </div>
   );

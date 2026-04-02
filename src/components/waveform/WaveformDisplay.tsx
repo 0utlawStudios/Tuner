@@ -1,73 +1,84 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect } from 'react';
 import { useTunerStore } from '../../store/tunerStore';
-import { theme } from '../../theme/theme';
+import { IN_TUNE_THRESHOLD, CLOSE_THRESHOLD } from '../../utils/constants';
 import styles from './WaveformDisplay.module.css';
+
+const BAR_COUNT = 40;
 
 export function WaveformDisplay() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const rafRef = useRef<number>(0);
-  const phaseRef = useRef(0);
-
-  const draw = useCallback(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
-    const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
-    ctx.scale(dpr, dpr);
-
-    const w = rect.width;
-    const h = rect.height;
-    const { currentFrequency, isListening, currentNote } = useTunerStore.getState();
-
-    ctx.clearRect(0, 0, w, h);
-
-    if (!isListening || !currentNote) {
-      // Idle: draw a flat dim line
-      ctx.beginPath();
-      ctx.moveTo(0, h / 2);
-      ctx.lineTo(w, h / 2);
-      ctx.strokeStyle = theme.colors.surfaceLight;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      rafRef.current = requestAnimationFrame(draw);
-      return;
-    }
-
-    // Animate waveform
-    phaseRef.current += 0.06;
-    const amplitude = h * 0.35;
-    const freq = Math.max(80, Math.min(800, currentFrequency));
-    const waveLen = w / (freq / 80);
-    const segments = 200;
-
-    ctx.beginPath();
-    for (let i = 0; i <= segments; i++) {
-      const x = (i / segments) * w;
-      const y = h / 2 + amplitude * Math.sin((x / waveLen) * Math.PI * 2 + phaseRef.current)
-        * Math.sin((x / w) * Math.PI); // envelope
-      if (i === 0) ctx.moveTo(x, y);
-      else ctx.lineTo(x, y);
-    }
-
-    ctx.strokeStyle = theme.colors.waveformStroke;
-    ctx.lineWidth = 2;
-    ctx.shadowBlur = 12;
-    ctx.shadowColor = theme.colors.primaryGlow;
-    ctx.stroke();
-    ctx.shadowBlur = 0;
-
-    rafRef.current = requestAnimationFrame(draw);
-  }, []);
+  const barsRef = useRef<Float32Array<ArrayBuffer>>(new Float32Array(BAR_COUNT));
 
   useEffect(() => {
+    const draw = () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      if (!ctx) { rafRef.current = requestAnimationFrame(draw); return; }
+
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0) { rafRef.current = requestAnimationFrame(draw); return; }
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const w = rect.width;
+      const h = rect.height;
+      const { currentFrequency, isListening, currentNote, currentCents } = useTunerStore.getState();
+
+      ctx.clearRect(0, 0, w, h);
+      const bars = barsRef.current;
+      const barW = Math.max(2, (w / BAR_COUNT) * 0.55);
+      const gap = (w - barW * BAR_COUNT) / (BAR_COUNT - 1);
+
+      // Pick color
+      let color = 'rgba(255,255,255,0.06)';
+      if (currentNote) {
+        const a = Math.abs(currentCents);
+        if (a <= IN_TUNE_THRESHOLD) color = '#00FFB2';
+        else if (a <= CLOSE_THRESHOLD) color = '#FFD700';
+        else color = '#FF4466';
+      }
+
+      const now = Date.now();
+
+      for (let i = 0; i < BAR_COUNT; i++) {
+        let target: number;
+        if (!isListening || !currentNote) {
+          target = 0.04 + 0.02 * Math.sin(now * 0.0008 + i * 0.4);
+        } else {
+          const freq = Math.max(60, Math.min(1200, currentFrequency));
+          const n = (freq - 60) / 1140;
+          const center = BAR_COUNT / 2;
+          const d = Math.abs(i - center) / center;
+          const env = Math.exp(-d * d * 3);
+          const w1 = Math.sin(now * 0.004 + i * 0.3 + n * 5) * 0.5 + 0.5;
+          const w2 = Math.sin(now * 0.006 + i * 0.5 - n * 3) * 0.3 + 0.5;
+          target = (w1 * 0.6 + w2 * 0.4) * env * 0.85 + 0.05;
+        }
+        bars[i] = bars[i]! * 0.85 + target * 0.15;
+
+        const barH = Math.max(2, bars[i]! * h * 0.8);
+        const x = i * (barW + gap);
+        const y = (h - barH) / 2;
+        const alpha = 0.15 + bars[i]! * 0.85;
+
+        ctx.globalAlpha = alpha;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.roundRect(x, y, barW, barH, barW / 2);
+        ctx.fill();
+      }
+      ctx.globalAlpha = 1;
+
+      rafRef.current = requestAnimationFrame(draw);
+    };
+
     rafRef.current = requestAnimationFrame(draw);
     return () => cancelAnimationFrame(rafRef.current);
-  }, [draw]);
+  }, []);
 
   return (
     <div className={styles.container}>

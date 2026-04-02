@@ -15,9 +15,7 @@ export function StringIndicator() {
           className={`${styles.string} ${matchedIndex === i ? styles.active : ''}`}
         >
           <div className={styles.dot} />
-          <span className={styles.label}>
-            {note.name}{note.octave}
-          </span>
+          <span className={styles.label}>{note.name}{note.octave}</span>
         </div>
       ))}
     </div>

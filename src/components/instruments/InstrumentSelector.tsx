@@ -11,7 +11,7 @@ export function InstrumentSelector() {
       {instruments.map(inst => (
         <button
           key={inst.id}
-          className={`${styles.chip} ${selectedId === inst.id ? styles.chipActive : ''}`}
+          className={`${styles.chip} ${selectedId === inst.id ? styles.active : ''}`}
           onClick={() => setInstrument(inst.id)}
         >
           <span className={styles.icon}>{inst.icon}</span>

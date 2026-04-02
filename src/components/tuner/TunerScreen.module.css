@@ -1,81 +1,173 @@
 .container {
   display: flex;
   flex-direction: column;
-  align-items: center;
   height: 100dvh;
+  width: 100%;
   max-width: 480px;
   margin: 0 auto;
-  padding: 16px 16px 24px;
+  padding: 12px 16px calc(env(safe-area-inset-bottom, 12px) + 12px);
+  gap: 12px;
   overflow: hidden;
-  width: 100%;
 }
 
+/* ── Header ── */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  margin-bottom: 8px;
+  flex-shrink: 0;
 }
 
 .brand {
-  font-size: 14px;
-  font-weight: 700;
-  letter-spacing: 3px;
-  color: #8888AA;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo {
+  width: 26px;
+  height: 26px;
+  object-fit: contain;
+  border-radius: 6px;
+}
+
+.brandName {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .badge {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
   letter-spacing: 1.5px;
-  padding: 4px 10px;
-  border-radius: 999px;
-  background: #1A1A25;
-  color: #555566;
-  transition: all 0.3s;
+  padding: 4px 12px;
+  border-radius: 100px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  color: rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition: all 0.4s ease;
 }
 
-.badge[data-active="true"] {
-  background: rgba(0, 255, 178, 0.12);
-  color: #00FFB2;
+.badgeActive {
+  background: rgba(0, 255, 178, 0.08);
+  border-color: rgba(0, 255, 178, 0.15);
+  color: rgba(0, 255, 178, 0.8);
 }
 
-.gaugeSection {
-  flex: 0 0 auto;
-  width: 100%;
+/* ── Main content ── */
+.main {
+  flex: 1 1 0;
   display: flex;
-  justify-content: center;
-  margin-top: 8px;
+  flex-direction: column;
+  gap: 12px;
+  min-height: 0;
 }
 
-.noteSection {
+.gaugeCard {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 24px;
+  backdrop-filter: blur(40px) saturate(150%);
+  -webkit-backdrop-filter: blur(40px) saturate(150%);
+  padding: 16px 16px 20px;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.noteArea {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  margin: 4px 0;
 }
 
 .frequency {
-  font-size: 13px;
-  color: #555566;
-  letter-spacing: 1px;
+  font-size: 12px;
+  font-weight: 400;
+  color: rgba(255, 255, 255, 0.2);
+  letter-spacing: 0.5px;
   font-variant-numeric: tabular-nums;
 }
 
-.waveformSection {
-  flex: 1 1 0;
-  width: 100%;
-  min-height: 60px;
-  max-height: 120px;
+.vizCard {
+  flex: 0 0 80px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  overflow: hidden;
 }
 
-.bottomSection {
-  flex: 0 0 auto;
-  width: 100%;
+/* ── Bottom ── */
+.bottom {
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: auto;
+}
+
+/* ── Responsive: short screens ── */
+@media (max-height: 640px) {
+  .container {
+    padding: 8px 12px 8px;
+    gap: 8px;
+  }
+
+  .gaugeCard {
+    padding: 8px 12px 12px;
+    border-radius: 20px;
+  }
+
+  .vizCard {
+    flex: 0 0 56px;
+    border-radius: 16px;
+  }
+
+  .bottom {
+    gap: 8px;
+  }
+}
+
+/* ── Responsive: tablets ── */
+@media (min-width: 600px) {
+  .container {
+    padding: 24px 24px 32px;
+    gap: 16px;
+  }
+
+  .gaugeCard {
+    border-radius: 28px;
+    padding: 24px 24px 28px;
+  }
+
+  .vizCard {
+    flex: 0 0 100px;
+    border-radius: 24px;
+  }
+}
+
+/* ── Landscape ── */
+@media (orientation: landscape) and (max-height: 500px) {
+  .container {
+    padding: 6px 24px;
+    gap: 6px;
+  }
+
+  .vizCard {
+    display: none;
+  }
+
+  .gaugeCard {
+    padding: 4px 12px 8px;
+  }
 }
