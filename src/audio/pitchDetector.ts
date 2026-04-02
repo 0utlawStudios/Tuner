@@ -23,7 +23,7 @@ export class PitchDetectorEngine {
 
     this.analyser = this.audioContext.createAnalyser();
     this.analyser.fftSize = 4096;
-    this.analyser.smoothingTimeConstant = 0; // No smoothing — we want raw frames
+    this.analyser.smoothingTimeConstant = 0;
     source.connect(this.analyser);
 
     this.buffer = new Float32Array(this.analyser.fftSize);
@@ -50,7 +50,7 @@ export class PitchDetectorEngine {
     if (!this.analyser || !this.audioContext) return;
 
     this.analyser.getFloatTimeDomainData(this.buffer);
-    const pitch = autoCorrelate(this.buffer, this.audioContext.sampleRate);
+    const pitch = detectPitch(this.buffer, this.audioContext.sampleRate);
     if (pitch > 0) {
       this.onPitch(pitch);
     }
@@ -60,80 +60,113 @@ export class PitchDetectorEngine {
 }
 
 /**
- * ACF2+ autocorrelation pitch detection.
- * Returns detected frequency in Hz, or -1 if no pitch found.
+ * Pitch detection using normalized autocorrelation (NSDF).
+ *
+ * Unlike raw autocorrelation, NSDF normalizes by the energy at each lag
+ * so the peak values are always between -1 and +1. This makes the
+ * confidence threshold meaningful regardless of signal amplitude.
  */
-function autoCorrelate(buf: Float32Array<ArrayBuffer>, sampleRate: number): number {
-  const SIZE = buf.length;
+function detectPitch(buf: Float32Array<ArrayBuffer>, sampleRate: number): number {
+  const N = buf.length;
 
-  // RMS volume gate
+  // Volume gate — RMS check
   let rms = 0;
-  for (let i = 0; i < SIZE; i++) {
+  for (let i = 0; i < N; i++) {
     rms += buf[i]! * buf[i]!;
   }
-  rms = Math.sqrt(rms / SIZE);
-  if (rms < 0.008) return -1;
+  rms = Math.sqrt(rms / N);
+  if (rms < 0.005) return -1;
 
-  // Find the meaningful signal window by trimming quiet edges.
-  // Walk inward from both ends until we hit a sample above the threshold.
-  const threshold = 0.15;
-  let start = 0;
-  let end = SIZE - 1;
-  for (let i = 0; i < SIZE / 2; i++) {
-    if (Math.abs(buf[i]!) >= threshold) { start = i; break; }
-  }
-  for (let i = SIZE - 1; i >= SIZE / 2; i--) {
-    if (Math.abs(buf[i]!) >= threshold) { end = i; break; }
-  }
+  // Compute NSDF (Normalized Square Difference Function) as
+  //   nsdf(tau) = 2 * r(tau) / m(tau)
+  // where r(tau) is autocorrelation and m(tau) is the normalization term.
+  //
+  // The key insight: dividing by m(tau) means peaks are always in [-1, 1]
+  // so we can use a fixed threshold (0.3) for confidence.
 
-  // Need a reasonable window for autocorrelation
-  if (end - start < 128) {
-    start = 0;
-    end = SIZE - 1;
-  }
+  // We only need lags up to half the buffer (Nyquist-like limit for periods)
+  const maxLag = Math.floor(N / 2);
+  const nsdf = new Float32Array(maxLag);
 
-  const len = end - start + 1;
+  for (let tau = 0; tau < maxLag; tau++) {
+    let acf = 0;   // autocorrelation at lag tau
+    let m = 0;     // normalization: sum of squared energies in overlapping windows
 
-  // Autocorrelation
-  const corr = new Float32Array(len);
-  for (let lag = 0; lag < len; lag++) {
-    let sum = 0;
-    for (let j = 0; j < len - lag; j++) {
-      sum += buf[start + j]! * buf[start + j + lag]!;
+    for (let j = 0; j < N - tau; j++) {
+      acf += buf[j]! * buf[j + tau]!;
+      m += buf[j]! * buf[j]! + buf[j + tau]! * buf[j + tau]!;
     }
-    corr[lag] = sum;
+
+    nsdf[tau] = m > 0 ? (2 * acf) / m : 0;
   }
 
-  // Find the first dip after lag 0 (correlation decreasing from self-correlation)
-  let d = 1;
-  while (d < len - 1 && corr[d]! >= corr[d - 1]!) d++;
-  if (d >= len - 1) return -1;
+  // Find peaks in the NSDF using "peak picking":
+  // 1. Walk past the initial positive region (lag 0 is always ~1.0)
+  // 2. Find when NSDF first goes negative (or dips below 0)
+  // 3. Then find all positive peaks after that
+  // 4. Choose the first peak above a confidence threshold
 
-  // Find the highest peak after the dip — this is the fundamental period
-  let bestLag = d;
-  let bestVal = corr[d]!;
-  for (let i = d + 1; i < len; i++) {
-    if (corr[i]! > bestVal) {
-      bestVal = corr[i]!;
-      bestLag = i;
+  // Step 1: skip the initial positive region
+  let tau = 1;
+  while (tau < maxLag && nsdf[tau]! > 0) tau++;
+  if (tau >= maxLag) return -1;
+
+  // Step 2: find positive peaks after the first zero crossing
+  let bestTau = -1;
+  let bestVal = -1;
+  const CONFIDENCE = 0.25;
+
+  while (tau < maxLag - 1) {
+    // Walk through negative region
+    while (tau < maxLag - 1 && nsdf[tau]! <= 0) tau++;
+
+    // Now in a positive region — find the peak
+    let peakTau = tau;
+    let peakVal = nsdf[tau]!;
+    while (tau < maxLag - 1 && nsdf[tau]! >= 0) {
+      if (nsdf[tau]! > peakVal) {
+        peakVal = nsdf[tau]!;
+        peakTau = tau;
+      }
+      tau++;
+    }
+
+    // Is this peak good enough?
+    if (peakVal >= CONFIDENCE) {
+      // Take the first sufficiently confident peak (fundamental, not harmonic)
+      if (bestTau === -1 || peakVal > bestVal * 0.85) {
+        // Accept this peak if it's the first, or significantly better
+        if (bestTau === -1) {
+          bestTau = peakTau;
+          bestVal = peakVal;
+          // For fundamental detection: first good peak is usually correct
+          // Don't break — check if next peak is clearly better (octave error fix)
+        } else if (peakVal > bestVal) {
+          bestTau = peakTau;
+          bestVal = peakVal;
+        }
+      }
+      // Once we have a confident peak, only continue if we haven't found one yet
+      if (bestVal >= 0.5) break;
     }
   }
 
-  // Confidence check: peak should be a significant fraction of self-correlation
-  if (corr[0]! > 0 && bestVal / corr[0]! < 0.3) return -1;
-
-  // Guard: bestLag must be interior for parabolic interpolation
-  if (bestLag < 1 || bestLag >= len - 1) return -1;
+  if (bestTau < 1 || bestTau >= maxLag - 1) return -1;
 
   // Parabolic interpolation for sub-sample accuracy
-  const y1 = corr[bestLag - 1]!;
-  const y2 = corr[bestLag]!;
-  const y3 = corr[bestLag + 1]!;
+  const y1 = nsdf[bestTau - 1]!;
+  const y2 = nsdf[bestTau]!;
+  const y3 = nsdf[bestTau + 1]!;
   const a = (y1 + y3 - 2 * y2) / 2;
   const b = (y3 - y1) / 2;
-  const refinedLag = bestLag + (a !== 0 ? -b / (2 * a) : 0);
+  const refinedTau = bestTau + (a !== 0 ? -b / (2 * a) : 0);
 
-  if (refinedLag <= 0) return -1;
+  if (refinedTau <= 0) return -1;
 
-  return sampleRate / refinedLag;
+  const freq = sampleRate / refinedTau;
+
+  // Sanity: reject frequencies outside instrument range (25 Hz to 5000 Hz)
+  if (freq < 25 || freq > 5000) return -1;
+
+  return freq;
 }
