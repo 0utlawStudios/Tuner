@@ -1,0 +1,19 @@
+.container {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.note {
+  font-size: 72px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  line-height: 1;
+  transition: color 0.15s;
+}
+
+.octave {
+  font-size: 28px;
+  font-weight: 400;
+  color: #8888AA;
+}

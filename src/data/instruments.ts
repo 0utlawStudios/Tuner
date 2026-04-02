@@ -4,7 +4,7 @@ export interface TuningNote {
   name: NoteName;
   octave: number;
   frequency: number;
-  stringNumber: number; // 1 = highest pitch string
+  stringNumber: number;
 }
 
 export interface Instrument {
@@ -18,13 +18,13 @@ export const instruments: Instrument[] = [
   {
     id: 'chromatic',
     name: 'Chromatic',
-    icon: '🎵',
-    tuning: [], // empty = detect any note
+    icon: '\u{1F3B5}',
+    tuning: [],
   },
   {
     id: 'guitar',
     name: 'Guitar',
-    icon: '🎸',
+    icon: '\u{1F3B8}',
     tuning: [
       {name: 'E', octave: 4, frequency: 329.63, stringNumber: 1},
       {name: 'B', octave: 3, frequency: 246.94, stringNumber: 2},
@@ -37,7 +37,7 @@ export const instruments: Instrument[] = [
   {
     id: 'bass',
     name: 'Bass',
-    icon: '🎸',
+    icon: '\u{1F3B8}',
     tuning: [
       {name: 'G', octave: 2, frequency: 98.0, stringNumber: 1},
       {name: 'D', octave: 2, frequency: 73.42, stringNumber: 2},
@@ -48,7 +48,7 @@ export const instruments: Instrument[] = [
   {
     id: 'ukulele',
     name: 'Ukulele',
-    icon: '🪕',
+    icon: '\u{1FA95}',
     tuning: [
       {name: 'A', octave: 4, frequency: 440.0, stringNumber: 1},
       {name: 'E', octave: 4, frequency: 329.63, stringNumber: 2},
@@ -59,7 +59,7 @@ export const instruments: Instrument[] = [
   {
     id: 'violin',
     name: 'Violin',
-    icon: '🎻',
+    icon: '\u{1F3BB}',
     tuning: [
       {name: 'E', octave: 5, frequency: 659.25, stringNumber: 1},
       {name: 'A', octave: 4, frequency: 440.0, stringNumber: 2},
@@ -70,4 +70,4 @@ export const instruments: Instrument[] = [
 ];
 
 export const getInstrumentById = (id: string): Instrument =>
-  instruments.find(i => i.id === id) ?? instruments[0];
+  instruments.find(i => i.id === id) ?? instruments[0]!;

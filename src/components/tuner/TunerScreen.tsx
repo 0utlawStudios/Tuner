@@ -1,142 +1,60 @@
-import React, {useEffect} from 'react';
-import {View, Text, Image, StyleSheet, StatusBar} from 'react-native';
-import {theme} from '../../theme/theme';
-import {useTunerStore} from '../../store/tunerStore';
-import {useTunerEngine} from '../../hooks/useTunerEngine';
-import {TunerGauge} from './TunerGauge';
-import {NoteDisplay} from './NoteDisplay';
-import {CentsDisplay} from './CentsDisplay';
-import {InTuneIndicator} from './InTuneIndicator';
-import {WaveformDisplay} from '../waveform/WaveformDisplay';
-import {InstrumentSelector} from '../instruments/InstrumentSelector';
-import {StringIndicator} from '../instruments/StringIndicator';
-
-// Shallow selectors — each component only subscribes to what it needs
-const selectCurrentNote = (s: ReturnType<typeof useTunerStore.getState>) => s.currentNote;
-const selectCurrentOctave = (s: ReturnType<typeof useTunerStore.getState>) => s.currentOctave;
-const selectCurrentCents = (s: ReturnType<typeof useTunerStore.getState>) => s.currentCents;
-const selectCurrentFrequency = (s: ReturnType<typeof useTunerStore.getState>) => s.currentFrequency;
-const selectIsListening = (s: ReturnType<typeof useTunerStore.getState>) => s.isListening;
+import { useEffect } from 'react';
+import { useTunerStore } from '../../store/tunerStore';
+import { useTunerEngine } from '../../hooks/useTunerEngine';
+import { NoteDisplay } from './NoteDisplay';
+import { CentsDisplay } from './CentsDisplay';
+import { TunerGauge } from './TunerGauge';
+import { InTuneIndicator } from './InTuneIndicator';
+import { WaveformDisplay } from '../waveform/WaveformDisplay';
+import { InstrumentSelector } from '../instruments/InstrumentSelector';
+import { StringIndicator } from '../instruments/StringIndicator';
+import styles from './TunerScreen.module.css';
 
 export function TunerScreen() {
-  const currentNote = useTunerStore(selectCurrentNote);
-  const currentOctave = useTunerStore(selectCurrentOctave);
-  const currentCents = useTunerStore(selectCurrentCents);
-  const currentFrequency = useTunerStore(selectCurrentFrequency);
-  const isListening = useTunerStore(selectIsListening);
-
-  const {start, stop} = useTunerEngine();
+  const { start, stop } = useTunerEngine();
+  const isListening = useTunerStore(s => s.isListening);
+  const currentNote = useTunerStore(s => s.currentNote);
+  const currentCents = useTunerStore(s => s.currentCents);
+  const currentFrequency = useTunerStore(s => s.currentFrequency);
 
   useEffect(() => {
     start();
-    return () => {
-      stop();
-    };
+    return () => { stop(); };
   }, [start, stop]);
 
-  const isActive = isListening && currentNote !== null;
-
   return (
-    <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={theme.colors.background} />
+    <div className={styles.container}>
+      <header className={styles.header}>
+        <span className={styles.brand}>TUNER</span>
+        <span className={styles.badge} data-active={isListening}>
+          {isListening ? 'LISTENING' : 'IDLE'}
+        </span>
+      </header>
 
-      {/* In-tune glow background */}
-      <InTuneIndicator cents={currentCents} isActive={isActive} />
+      <div className={styles.gaugeSection}>
+        <TunerGauge cents={currentNote ? currentCents : 0} />
+      </div>
 
-      {/* Waveform at top */}
-      <View style={styles.waveformSection}>
-        <WaveformDisplay frequency={currentFrequency} isActive={isActive} />
-      </View>
+      <InTuneIndicator />
 
-      {/* Gauge */}
-      <View style={styles.gaugeSection}>
-        <TunerGauge cents={currentCents} isActive={isActive} />
-      </View>
+      <div className={styles.noteSection}>
+        <NoteDisplay />
+        <CentsDisplay />
+        {currentNote && (
+          <div className={styles.frequency}>
+            {currentFrequency.toFixed(1)} Hz
+          </div>
+        )}
+      </div>
 
-      {/* Note display */}
-      <View style={styles.noteSection}>
-        <NoteDisplay
-          note={currentNote}
-          octave={currentOctave}
-          cents={currentCents}
-          isActive={isActive}
-        />
-        <CentsDisplay
-          cents={currentCents}
-          frequency={currentFrequency}
-          isActive={isActive}
-        />
-      </View>
+      <div className={styles.waveformSection}>
+        <WaveformDisplay />
+      </div>
 
-      {/* String indicator */}
-      <View style={styles.stringsSection}>
+      <div className={styles.bottomSection}>
         <StringIndicator />
-      </View>
-
-      {/* Instrument selector at bottom */}
-      <View style={styles.instrumentSection}>
         <InstrumentSelector />
-      </View>
-
-      {/* Branding */}
-      <View style={styles.brandBar}>
-        <Image
-          source={require('../../../assets/logo.png')}
-          style={styles.brandLogo}
-          resizeMode="contain"
-        />
-        <Text style={styles.brandText}>0utlawStudios</Text>
-      </View>
-    </View>
+      </div>
+    </div>
   );
 }
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: theme.colors.background,
-    paddingTop: 60,
-    paddingBottom: 40,
-  },
-  waveformSection: {
-    alignItems: 'center',
-    paddingVertical: theme.spacing.sm,
-  },
-  gaugeSection: {
-    alignItems: 'center',
-    marginTop: theme.spacing.sm,
-  },
-  noteSection: {
-    alignItems: 'center',
-    gap: 8,
-    marginTop: theme.spacing.md,
-  },
-  stringsSection: {
-    marginTop: theme.spacing.xl,
-  },
-  instrumentSection: {
-    marginTop: 'auto',
-    paddingTop: theme.spacing.lg,
-  },
-  brandBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingTop: 12,
-  },
-  brandLogo: {
-    width: 20,
-    height: 20,
-    opacity: 0.25,
-    tintColor: '#FFFFFF',
-  },
-  brandText: {
-    fontSize: 9,
-    fontWeight: '500',
-    letterSpacing: 2.5,
-    textTransform: 'uppercase',
-    color: theme.colors.textDim,
-    opacity: 0.4,
-  },
-});

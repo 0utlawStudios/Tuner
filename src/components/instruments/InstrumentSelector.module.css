@@ -1,0 +1,49 @@
+.container {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding: 4px 0;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  justify-content: center;
+  flex-wrap: wrap;
+}
+
+.container::-webkit-scrollbar {
+  display: none;
+}
+
+.chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 20px;
+  background: #1A1A25;
+  white-space: nowrap;
+  transition: all 0.2s;
+}
+
+.chipActive {
+  background: rgba(0, 255, 178, 0.12);
+  box-shadow: 0 0 0 1px rgba(0, 255, 178, 0.3);
+}
+
+.chip:active {
+  transform: scale(0.95);
+}
+
+.icon {
+  font-size: 16px;
+}
+
+.label {
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+  color: #8888AA;
+}
+
+.chipActive .label {
+  color: #00FFB2;
+}

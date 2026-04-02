@@ -1,0 +1,81 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100dvh;
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 16px 16px 24px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.brand {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: #8888AA;
+}
+
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #1A1A25;
+  color: #555566;
+  transition: all 0.3s;
+}
+
+.badge[data-active="true"] {
+  background: rgba(0, 255, 178, 0.12);
+  color: #00FFB2;
+}
+
+.gaugeSection {
+  flex: 0 0 auto;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-top: 8px;
+}
+
+.noteSection {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  margin: 4px 0;
+}
+
+.frequency {
+  font-size: 13px;
+  color: #555566;
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+.waveformSection {
+  flex: 1 1 0;
+  width: 100%;
+  min-height: 60px;
+  max-height: 120px;
+}
+
+.bottomSection {
+  flex: 0 0 auto;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: auto;
+}

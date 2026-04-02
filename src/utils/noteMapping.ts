@@ -14,7 +14,7 @@ export function frequencyToNote(freq: number): NoteInfo {
   const midiNote = roundedSemitones + 69;
   const cents = (semitones - roundedSemitones) * 100;
   const noteIndex = ((midiNote % 12) + 12) % 12;
-  const name = NOTE_NAMES[noteIndex];
+  const name = NOTE_NAMES[noteIndex]!;
   const octave = Math.floor(midiNote / 12) - 1;
 
   return {name, octave, cents, frequency: freq, midiNote};

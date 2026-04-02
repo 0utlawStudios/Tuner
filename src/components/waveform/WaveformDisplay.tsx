@@ -1,105 +1,77 @@
-import React, {useMemo} from 'react';
-import {StyleSheet, View} from 'react-native';
-import {Canvas, Path as SkiaPath, Skia, BlurMask} from '@shopify/react-native-skia';
-import {useSharedValue, useDerivedValue, useFrameCallback} from 'react-native-reanimated';
-import {theme} from '../../theme/theme';
+import { useRef, useEffect, useCallback } from 'react';
+import { useTunerStore } from '../../store/tunerStore';
+import { theme } from '../../theme/theme';
+import styles from './WaveformDisplay.module.css';
 
-interface WaveformDisplayProps {
-  frequency: number;
-  isActive: boolean;
-}
+export function WaveformDisplay() {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  const rafRef = useRef<number>(0);
+  const phaseRef = useRef(0);
 
-const WIDTH = 360;
-const HEIGHT = 100;
-const WAVE_Y = HEIGHT / 2;
-const TWO_PI = Math.PI * 2;
+  const draw = useCallback(() => {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
 
-function buildSkiaPath(freq: number, isActive: boolean, phase: number) {
-  'worklet';
-  const path = Skia.Path.Make();
-  if (!isActive || freq <= 0) {
-    path.moveTo(0, WAVE_Y);
-    path.lineTo(WIDTH, WAVE_Y);
-    return path;
-  }
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
 
-  const wavelength = Math.max(20, Math.min(80, 8000 / freq));
-  const amplitude = 20;
+    const w = rect.width;
+    const h = rect.height;
+    const { currentFrequency, isListening, currentNote } = useTunerStore.getState();
 
-  path.moveTo(0, WAVE_Y);
-  for (let x = 2; x <= WIDTH; x += 2) {
-    const y =
-      WAVE_Y +
-      amplitude *
-        Math.sin((x / wavelength) * TWO_PI + phase) *
-        Math.sin((x / WIDTH) * Math.PI);
-    path.lineTo(x, y);
-  }
-  return path;
-}
+    ctx.clearRect(0, 0, w, h);
 
-export const WaveformDisplay = React.memo(function WaveformDisplay({
-  frequency,
-  isActive,
-}: WaveformDisplayProps) {
-  const phase = useSharedValue(0);
-  const freqSv = useSharedValue(frequency);
-  const isActiveSv = useSharedValue(isActive);
-
-  // Keep shared values in sync with props
-  freqSv.value = frequency;
-  isActiveSv.value = isActive;
-
-  // Animate phase forward on every frame when active
-  useFrameCallback(frameInfo => {
-    if (isActiveSv.value) {
-      // Advance phase ~1 full cycle per second regardless of freq
-      phase.value = (phase.value + (frameInfo.timeSincePreviousFrame ?? 16) * 0.004) % TWO_PI;
+    if (!isListening || !currentNote) {
+      // Idle: draw a flat dim line
+      ctx.beginPath();
+      ctx.moveTo(0, h / 2);
+      ctx.lineTo(w, h / 2);
+      ctx.strokeStyle = theme.colors.surfaceLight;
+      ctx.lineWidth = 1;
+      ctx.stroke();
+      rafRef.current = requestAnimationFrame(draw);
+      return;
     }
-  });
 
-  // Recompute the Skia path on the UI thread whenever phase or inputs change
-  const animatedPath = useDerivedValue(() => {
-    return buildSkiaPath(freqSv.value, isActiveSv.value, phase.value);
-  });
+    // Animate waveform
+    phaseRef.current += 0.06;
+    const amplitude = h * 0.35;
+    const freq = Math.max(80, Math.min(800, currentFrequency));
+    const waveLen = w / (freq / 80);
+    const segments = 200;
 
-  const strokeColor = useMemo(
-    () => (isActive ? theme.colors.waveformStroke : theme.colors.textDim),
-    [isActive],
-  );
+    ctx.beginPath();
+    for (let i = 0; i <= segments; i++) {
+      const x = (i / segments) * w;
+      const y = h / 2 + amplitude * Math.sin((x / waveLen) * Math.PI * 2 + phaseRef.current)
+        * Math.sin((x / w) * Math.PI); // envelope
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+
+    ctx.strokeStyle = theme.colors.waveformStroke;
+    ctx.lineWidth = 2;
+    ctx.shadowBlur = 12;
+    ctx.shadowColor = theme.colors.primaryGlow;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    rafRef.current = requestAnimationFrame(draw);
+  }, []);
+
+  useEffect(() => {
+    rafRef.current = requestAnimationFrame(draw);
+    return () => cancelAnimationFrame(rafRef.current);
+  }, [draw]);
 
   return (
-    <View style={styles.container}>
-      <Canvas style={styles.canvas}>
-        {/* Glow layer */}
-        <SkiaPath
-          path={animatedPath}
-          color={strokeColor}
-          style="stroke"
-          strokeWidth={4}
-          strokeCap="round">
-          <BlurMask blur={12} style="normal" />
-        </SkiaPath>
-        {/* Main stroke */}
-        <SkiaPath
-          path={animatedPath}
-          color={strokeColor}
-          style="stroke"
-          strokeWidth={2}
-          strokeCap="round"
-        />
-      </Canvas>
-    </View>
+    <div className={styles.container}>
+      <canvas ref={canvasRef} className={styles.canvas} />
+    </div>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  canvas: {
-    width: WIDTH,
-    height: HEIGHT,
-  },
-});
+}

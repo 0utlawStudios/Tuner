@@ -1,56 +1,29 @@
-import React from 'react';
-import {View, Text, StyleSheet} from 'react-native';
-import {theme} from '../../theme/theme';
-import {formatCents} from '../../utils/noteMapping';
-import {IN_TUNE_THRESHOLD, CLOSE_THRESHOLD} from '../../utils/constants';
+import { useTunerStore } from '../../store/tunerStore';
+import { formatCents } from '../../utils/noteMapping';
+import { useMemo } from 'react';
+import { IN_TUNE_THRESHOLD, CLOSE_THRESHOLD } from '../../utils/constants';
+import { theme } from '../../theme/theme';
+import styles from './CentsDisplay.module.css';
 
-interface CentsDisplayProps {
-  cents: number;
-  frequency: number;
-  isActive: boolean;
-}
+export function CentsDisplay() {
+  const currentNote = useTunerStore(s => s.currentNote);
+  const currentCents = useTunerStore(s => s.currentCents);
 
-export const CentsDisplay = React.memo(function CentsDisplay({cents, frequency, isActive}: CentsDisplayProps) {
-  if (!isActive) {
-    return (
-      <View style={styles.container}>
-        <Text style={[styles.cents, {color: theme.colors.textDim}]}>—</Text>
-        <Text style={[styles.frequency, {color: theme.colors.textDim}]}>— Hz</Text>
-      </View>
-    );
+  const color = useMemo(() => {
+    if (!currentNote) return theme.colors.textDim;
+    const absCents = Math.abs(currentCents);
+    if (absCents <= IN_TUNE_THRESHOLD) return theme.colors.inTune;
+    if (absCents <= CLOSE_THRESHOLD) return theme.colors.close;
+    return theme.colors.sharp;
+  }, [currentNote, currentCents]);
+
+  if (!currentNote) {
+    return <div className={styles.cents} style={{ color: theme.colors.textDim }}>Play a note...</div>;
   }
 
-  const absCents = Math.abs(cents);
-  const color =
-    absCents <= IN_TUNE_THRESHOLD
-      ? theme.colors.inTune
-      : absCents <= CLOSE_THRESHOLD
-      ? theme.colors.close
-      : theme.colors.sharp;
-
   return (
-    <View style={styles.container}>
-      <Text style={[styles.cents, {color}]}>{formatCents(cents)}</Text>
-      <Text style={[styles.frequency, {color: theme.colors.textSecondary}]}>
-        {frequency.toFixed(1)} Hz
-      </Text>
-    </View>
+    <div className={styles.cents} style={{ color }}>
+      {formatCents(currentCents)}
+    </div>
   );
-});
-
-const styles = StyleSheet.create({
-  container: {
-    alignItems: 'center',
-    gap: 4,
-  },
-  cents: {
-    fontSize: theme.fonts.cents.fontSize,
-    fontWeight: theme.fonts.cents.fontWeight,
-    letterSpacing: theme.fonts.cents.letterSpacing,
-  },
-  frequency: {
-    fontSize: 13,
-    fontWeight: '400',
-    letterSpacing: 0.5,
-  },
-});
+}

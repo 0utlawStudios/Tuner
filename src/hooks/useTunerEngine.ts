@@ -1,23 +1,20 @@
-import {useCallback, useRef, useEffect} from 'react';
-import {usePitchDetector} from './usePitchDetector';
-import {useTunerStore} from '../store/tunerStore';
-import {frequencyToNote} from '../utils/noteMapping';
-import {PitchSmoother} from '../utils/smoothing';
-import {IN_TUNE_THRESHOLD} from '../utils/constants';
-import {TuningNote} from '../data/instruments';
-import ReactNativeHapticFeedback from 'react-native-haptic-feedback';
+import { useCallback, useRef, useEffect } from 'react';
+import { usePitchDetector } from './usePitchDetector';
+import { useTunerStore } from '../store/tunerStore';
+import { frequencyToNote } from '../utils/noteMapping';
+import { PitchSmoother } from '../utils/smoothing';
+import { IN_TUNE_THRESHOLD } from '../utils/constants';
+import { TuningNote } from '../data/instruments';
 
 export function useTunerEngine() {
   const smoother = useRef(new PitchSmoother()).current;
   const wasInTune = useRef(false);
 
-  // Use refs for store actions to avoid recreating callbacks on every render
   const updatePitchRef = useRef(useTunerStore.getState().updatePitch);
   const clearPitchRef = useRef(useTunerStore.getState().clearPitch);
   const setMatchedStringRef = useRef(useTunerStore.getState().setMatchedString);
   const setIsListeningRef = useRef(useTunerStore.getState().setIsListening);
 
-  // Keep action refs current without triggering re-renders
   useEffect(() => {
     return useTunerStore.subscribe(state => {
       updatePitchRef.current = state.updatePitch;
@@ -27,7 +24,6 @@ export function useTunerEngine() {
     });
   }, []);
 
-  // Stable ref for the selected instrument to avoid handlePitch dependency churn
   const selectedInstrumentRef = useRef(useTunerStore.getState().selectedInstrument);
   useEffect(() => {
     return useTunerStore.subscribe(state => {
@@ -35,7 +31,6 @@ export function useTunerEngine() {
     });
   }, []);
 
-  // findClosestString reads from ref — no dependency on selectedInstrument in the closure
   const findClosestString = useCallback((frequency: number): number | null => {
     const tuning = selectedInstrumentRef.current.tuning;
     if (tuning.length === 0) return null;
@@ -52,7 +47,7 @@ export function useTunerEngine() {
     });
 
     return closestDist <= 3 ? closestIndex : null;
-  }, []); // stable — reads selectedInstrumentRef at call time
+  }, []);
 
   const handlePitch = useCallback(
     (rawPitch: number) => {
@@ -69,15 +64,12 @@ export function useTunerEngine() {
       setMatchedStringRef.current(stringIdx);
 
       const isInTune = Math.abs(noteInfo.cents) <= IN_TUNE_THRESHOLD;
-      if (isInTune && !wasInTune.current) {
-        ReactNativeHapticFeedback.trigger('impactLight');
-      }
       wasInTune.current = isInTune;
     },
     [smoother, findClosestString],
   );
 
-  const {start: startDetector, stop: stopDetector} = usePitchDetector({
+  const { start: startDetector, stop: stopDetector } = usePitchDetector({
     onPitch: handlePitch,
   });
 
@@ -89,7 +81,7 @@ export function useTunerEngine() {
   }, [startDetector, smoother]);
 
   const stop = useCallback(async () => {
-    await stopDetector();
+    stopDetector();
     setIsListeningRef.current(false);
     clearPitchRef.current();
     smoother.reset();
@@ -101,5 +93,5 @@ export function useTunerEngine() {
     };
   }, [stopDetector]);
 
-  return {start, stop};
+  return { start, stop };
 }

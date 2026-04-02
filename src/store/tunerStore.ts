@@ -3,36 +3,31 @@ import {NoteName} from '../utils/constants';
 import {Instrument, instruments} from '../data/instruments';
 
 export interface TunerState {
-  // Instrument selection
   selectedInstrumentId: string;
   selectedInstrument: Instrument;
   setInstrument: (id: string) => void;
 
-  // Pitch detection state
   isListening: boolean;
   setIsListening: (listening: boolean) => void;
 
-  // Current detected note
   currentNote: NoteName | null;
   currentOctave: number | null;
   currentCents: number;
   currentFrequency: number;
 
-  // Update pitch data
   updatePitch: (note: NoteName, octave: number, cents: number, frequency: number) => void;
   clearPitch: () => void;
 
-  // Matched string (for instrument presets)
   matchedStringIndex: number | null;
   setMatchedString: (index: number | null) => void;
 }
 
 export const useTunerStore = create<TunerState>((set) => ({
   selectedInstrumentId: 'guitar',
-  selectedInstrument: instruments[1], // guitar
+  selectedInstrument: instruments[1]!,
 
   setInstrument: (id: string) => {
-    const instrument = instruments.find(i => i.id === id) ?? instruments[0];
+    const instrument = instruments.find(i => i.id === id) ?? instruments[0]!;
     set({selectedInstrumentId: id, selectedInstrument: instrument, matchedStringIndex: null});
   },
 

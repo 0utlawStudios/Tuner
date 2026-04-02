@@ -1,0 +1,8 @@
+.container {
+  display: flex;
+  justify-content: center;
+}
+
+.needle {
+  transition: x2 0.12s ease-out, y2 0.12s ease-out, stroke 0.15s;
+}

@@ -31,20 +31,15 @@ export class PitchSmoother {
     }
 
     if (newMidiNote === this.lastMidiNote) {
-      return true; // Same note, no switch needed
+      return true;
     }
 
-    // Hysteresis: only switch if enough time has passed
     if (now - this.lastNoteChange >= HYSTERESIS_MS) {
       this.lastMidiNote = newMidiNote;
       this.lastNoteChange = now;
       return true;
     }
 
-    return false; // Suppress switch, keep showing previous note
-  }
-
-  getCurrentMidiNote(): number | null {
-    return this.lastMidiNote;
+    return false;
   }
 }
