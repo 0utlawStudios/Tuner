@@ -1,5 +1,5 @@
 import React, {useEffect} from 'react';
-import {View, StyleSheet, StatusBar} from 'react-native';
+import {View, Text, Image, StyleSheet, StatusBar} from 'react-native';
 import {theme} from '../../theme/theme';
 import {useTunerStore} from '../../store/tunerStore';
 import {useTunerEngine} from '../../hooks/useTunerEngine';
@@ -77,6 +77,16 @@ export function TunerScreen() {
       <View style={styles.instrumentSection}>
         <InstrumentSelector />
       </View>
+
+      {/* Branding */}
+      <View style={styles.brandBar}>
+        <Image
+          source={require('../../../assets/logo.png')}
+          style={styles.brandLogo}
+          resizeMode="contain"
+        />
+        <Text style={styles.brandText}>0utlawStudios</Text>
+      </View>
     </View>
   );
 }
@@ -107,5 +117,26 @@ const styles = StyleSheet.create({
   instrumentSection: {
     marginTop: 'auto',
     paddingTop: theme.spacing.lg,
+  },
+  brandBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingTop: 12,
+  },
+  brandLogo: {
+    width: 20,
+    height: 20,
+    opacity: 0.25,
+    tintColor: '#FFFFFF',
+  },
+  brandText: {
+    fontSize: 9,
+    fontWeight: '500',
+    letterSpacing: 2.5,
+    textTransform: 'uppercase',
+    color: theme.colors.textDim,
+    opacity: 0.4,
   },
 });
