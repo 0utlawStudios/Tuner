@@ -1,4 +1,33 @@
 {
   "name": "Tuner",
-  "displayName": "Tuner"
+  "displayName": "Tuner",
+  "expo": {
+    "name": "Tuner",
+    "slug": "tuner",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "tuner",
+    "ios": {
+      "bundleIdentifier": "com.outlawstudios.tuner",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Tuner needs microphone access to detect the pitch of your instrument."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#0A0A0F"
+      },
+      "package": "com.outlawstudios.tuner",
+      "permissions": ["RECORD_AUDIO"]
+    },
+    "extra": {
+      "eas": {
+        "projectId": "05d1fc3f-6c5c-4e0a-9460-cfe3ba2e3c1c"
+      }
+    },
+    "owner": "0utlawstudios"
+  }
 }
